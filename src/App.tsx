@@ -1,36 +1,51 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+
+import { Toaster } from "@/components/ui/sonner";
+import "@/App.css";
+import VolumeList from "@/components/main/Volumes/VolumeList";
+import { Volume } from "@/types";
+import { useNavigationStore } from "./store/navigation";
+import ExplorerComponent from "./components/main/Explorer/ExplorerComponent";
+import { readPath } from "./icpc-calls";
+import { useDirectoryStore } from "./store/directory";
 import { toast } from "sonner";
 
-
-import { invoke } from "@tauri-apps/api/core";
-import { Toaster } from "@/components/ui/sonner";
-import "./App.css";
-import { Volume } from "./types"
-
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [volumes, setVolumes] = useState<Volume[]>([]);
+  const { currentIndex, history } = useNavigationStore()
+  const { setDirectory } = useDirectoryStore()
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+  const fetchVolumes = async () => {
+    const data = await invoke<Volume[]>("get_volumes");
+    setVolumes(data)
+  }
+
+  const handleReadCurrentPath = async () => {
     try {
-      // await invoke("greet", { name })
-      setGreetMsg(await invoke("greet", { name }));
-      await invoke("increase_counter", { add: 10 });
-      const msg = await invoke("show_counter");
-      const data = await invoke<Volume[]>("get_volumes");
-      console.log("Yash; ", msg);
-
-      console.log("Yash:2 ", data)
+      const currPath = history[currentIndex];
+      const data = await readPath(currPath);
+      setDirectory(data)
     } catch (err) {
-      console.log("Yash: ", err)
       toast.error(err);
     }
   }
 
+  useEffect(() => {
+    if (currentIndex === 0) {
+      fetchVolumes()
+      return
+    }
+    
+    handleReadCurrentPath()
+  }, [currentIndex])
+
   return (
-    <main className="container">
-      <h1>Yash here</h1>
+    <main className="bg-black w-screen min-h-screen py-10 px-5">
+      {
+        currentIndex === 0 ? <VolumeList volumes={volumes} /> : <ExplorerComponent />
+      }
       <Toaster richColors />
     </main>
   );

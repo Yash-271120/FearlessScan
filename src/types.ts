@@ -1,7 +1,13 @@
 export interface Volume {
     name: string;
-    mountpoint: string;
-    available_gb: number;
-    used_gb: number;
-    total_gb: number;
+    mountPoint: string;
+    availableGb: number;
+    usedGb: number;
+    totalGb: number;
+}
+
+export interface DirectoryPath {
+  type: "directory" | "file";
+  name: string;
+  path: string;
 }
