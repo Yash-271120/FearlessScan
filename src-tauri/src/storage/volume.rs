@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fs::DirEntry, path::PathBuf};
 
 use crate::storage::bytes_to_gb;
 use serde::Serialize;
@@ -14,6 +14,13 @@ pub struct Volume {
     available_gb: u16,
     used_gb: u16,
     total_gb: u16,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase", tag = "type")]
+pub enum DirectoryPath {
+    File { name: String, path: String },
+    Directory { name: String, path: String },
 }
 
 impl Volume {
@@ -44,8 +51,27 @@ impl Volume {
     }
 }
 
+impl DirectoryPath {
+   pub fn from(dir_entry: &DirEntry) -> Self {
+        let file_name = dir_entry.file_name().into_string().unwrap();
+        let file_path = dir_entry.path().to_string_lossy().to_string();
+        
+
+        match dir_entry.path().is_dir() {
+            true => DirectoryPath::Directory {
+                name: file_name,
+                path: file_path,
+            },
+            false => DirectoryPath::File {
+                name: file_name,
+                path: file_path,
+            },
+        }
+    }
+}
+
 #[tauri::command]
-pub fn get_volumes() -> Result<Vec<Volume>,String> {
+pub fn get_volumes() -> Result<Vec<Volume>, String> {
     let mut sys = System::new_all();
 
     sys.refresh_all();
