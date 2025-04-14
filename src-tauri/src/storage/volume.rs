@@ -16,7 +16,7 @@ pub struct Volume {
     total_gb: u16,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum DirectoryPath {
     File { name: String, path: String },
@@ -52,10 +52,9 @@ impl Volume {
 }
 
 impl DirectoryPath {
-   pub fn from(dir_entry: &DirEntry) -> Self {
+    pub fn from(dir_entry: &DirEntry) -> Self {
         let file_name = dir_entry.file_name().into_string().unwrap();
         let file_path = dir_entry.path().to_string_lossy().to_string();
-        
 
         match dir_entry.path().is_dir() {
             true => DirectoryPath::Directory {
@@ -78,6 +77,7 @@ pub fn get_volumes() -> Result<Vec<Volume>, String> {
 
     let sys_disks = Disks::new_with_refreshed_list();
 
+    println!("Called");
     let disks: Vec<Volume> = sys_disks
         .iter()
         .map(Volume::from)

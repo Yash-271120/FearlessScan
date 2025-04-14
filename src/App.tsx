@@ -11,6 +11,9 @@ import ExplorerComponent from "./components/main/Explorer/ExplorerComponent";
 import { readPath } from "./icpc-calls";
 import { useDirectoryStore } from "./store/directory";
 import { toast } from "sonner";
+import { Button } from "./components/ui/button";
+import { listen } from "@tauri-apps/api/event";
+import { event } from "@tauri-apps/api";
 
 function App() {
   const [volumes, setVolumes] = useState<Volume[]>([]);
@@ -32,7 +35,20 @@ function App() {
     }
   }
 
+  type EventPayload = {
+     path: string;
+    name: string;
+  }
+
+  const handleTest = async () => {
+    const data = await invoke("open_file");
+    console.log(data);
+  }
+
   useEffect(() => {
+    listen<EventPayload>("yash-event",(event)=>{
+      console.log(event.payload);
+    })
     if (currentIndex === 0) {
       fetchVolumes()
       return
@@ -46,6 +62,7 @@ function App() {
       {
         currentIndex === 0 ? <VolumeList volumes={volumes} /> : <ExplorerComponent />
       }
+      <Button onClick={handleTest}>Test</Button>
       <Toaster richColors />
     </main>
   );

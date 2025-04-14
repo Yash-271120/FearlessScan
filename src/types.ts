@@ -11,3 +11,8 @@ export interface DirectoryPath {
   name: string;
   path: string;
 }
+
+export interface FSEvent{
+  kind: "create" | "remove";
+  directoryPath: DirectoryPath; 
+}
