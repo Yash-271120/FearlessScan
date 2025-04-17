@@ -6,6 +6,9 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum MyError {
     #[error(transparent)]
+    Notify(#[from] notify::Error),
+
+    #[error(transparent)]
     Io(#[from] io::Error),
 }
 

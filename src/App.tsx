@@ -35,20 +35,12 @@ function App() {
     }
   }
 
-  type EventPayload = {
-     path: string;
-    name: string;
-  }
-
   const handleTest = async () => {
     const data = await invoke("open_file");
     console.log(data);
   }
 
   useEffect(() => {
-    listen<EventPayload>("yash-event",(event)=>{
-      console.log(event.payload);
-    })
     if (currentIndex === 0) {
       fetchVolumes()
       return

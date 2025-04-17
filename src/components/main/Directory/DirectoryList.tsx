@@ -7,7 +7,7 @@ import { FSEvent } from "@/types";
 const FS_EVENT_NAME = "fs-event";
 
 const DirectoryList = () => {
-  const { directory, addItem } = useDirectoryStore();
+  const { directory, addItem, removeItem } = useDirectoryStore();
 
   let render = 0;
   useEffect(() => {
@@ -18,6 +18,9 @@ const DirectoryList = () => {
         switch (payload.kind) {
           case "create":
             addItem(payload.directoryPath);
+            break;
+          case "remove":
+            removeItem(payload.directoryPath);
             break;
           default:
             break;
