@@ -7,6 +7,7 @@ type State = {
 
 type Action = {
   pushToHistory: (path: string) => void;
+  getCurrentPath: () => string;
   goBack: () => void;
   goForward: () => void;
   canGoBack: () => boolean;
@@ -38,5 +39,8 @@ export const useNavigationStore = create<State & Action>((set, get) => ({
   },
   canGoForward: () => {
     return get().currentIndex < get().history.length - 1;
+  },
+  getCurrentPath: () => {
+    return get().history[get().currentIndex];
   }
 }))

@@ -36,7 +36,10 @@ function App() {
   }
 
   const handleTest = async () => {
-    const data = await invoke("open_file");
+    const data = await invoke("search_directory",{
+      path: "/home/naruto/WorkSpace",
+      query: "volume"
+    });
     console.log(data);
   }
 

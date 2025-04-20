@@ -5,19 +5,17 @@ mod storage;
 
 use std::sync::{mpsc::Sender, Arc, Mutex};
 
-use filesystem::read_directory;
+use filesystem::{read_directory, search_directory};
 use storage::get_volumes;
 use tauri::Manager;
 
 pub struct MyState {
     directory_change_event_channel_sender: Option<Sender<String>>,
-    counter: u8,
 }
 
 impl MyState {
     fn new() -> MyState {
         MyState {
-            counter: 0,
             directory_change_event_channel_sender: None,
         }
     }
@@ -34,7 +32,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_volumes, read_directory,])
+        .invoke_handler(tauri::generate_handler![get_volumes, read_directory, search_directory])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

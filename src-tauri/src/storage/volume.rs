@@ -1,6 +1,7 @@
 use std::{fs::DirEntry, path::PathBuf};
 
 use crate::storage::bytes_to_gb;
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use serde::Serialize;
 use sysinfo::{Disk, Disks, System};
 
@@ -21,6 +22,31 @@ pub struct Volume {
 pub enum DirectoryPath {
     File { name: String, path: String },
     Directory { name: String, path: String },
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResult {
+    name: String,
+    path: String,
+    pub score: i64,
+    indices: Vec<usize>,
+}
+
+impl SearchResult {
+    pub fn try_from(dir_entry: &DirEntry, matcher: &SkimMatcherV2, query: &str) -> Option<Self> {
+        let file_name = dir_entry.file_name().to_string_lossy().to_string();
+        let path = dir_entry.path().to_string_lossy().to_string();
+
+        let (score, indices) = matcher.fuzzy_indices(&file_name, query)?;
+
+        Some(Self {
+            name: file_name,
+            path,
+            score,
+            indices,
+        })
+    }
 }
 
 impl Volume {
