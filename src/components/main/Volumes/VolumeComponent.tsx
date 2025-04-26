@@ -11,7 +11,7 @@ type Props = {
   volume: Volume
 }
 const VolumeComponent = ({ volume }: Props) => {
-  const { setDirectory } = useDirectoryStore();
+  const { setDirectory,setCurrentMountPoint } = useDirectoryStore();
   const { pushToHistory} = useNavigationStore();
 
   const handleVolumeClick = async () => {
@@ -21,6 +21,7 @@ const VolumeComponent = ({ volume }: Props) => {
       })
       setDirectory(data)
       pushToHistory(volume.mountPoint)
+      setCurrentMountPoint(volume.mountPoint);
     } catch (err) {
       toast.error(err)
     }
