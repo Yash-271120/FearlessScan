@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFile, faFolder } from "@fortawesome/free-solid-svg-icons";
 import { useNavigationStore } from "@/store/navigation";
 import { toast } from "sonner";
+import { invoke } from "@tauri-apps/api/core";
 
 type Props = {
   content: DirectoryPath
@@ -10,9 +11,19 @@ type Props = {
 const DirectoryComponent = ({ content }: Props) => {
   const { pushToHistory } = useNavigationStore();
 
+  const handleOpenFile = async (path: string) => {
+    try {
+      await invoke("open_file", { path });
+    } catch (err) {
+      toast.error(err)
+    }
+  }
   const handleDirectoryClick = async () => {
     try {
-      if (content.type === "file") return;
+      if (content.type === "file") {
+          await handleOpenFile(content.path)
+          return;
+      }
       pushToHistory(content.path)
     } catch (err) {
       toast.error(err)

@@ -5,6 +5,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MyError {
+
+    #[error("error opening file")]
+    FileOpen,
+
     #[error(transparent)]
     Notify(#[from] notify::Error),
 

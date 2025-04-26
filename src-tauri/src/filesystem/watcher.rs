@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use crate::filesystem::MyFSEventHandler;
+use crate::{filesystem::MyFSEventHandler, SafeMyState};
 use notify::{recommended_watcher, RecommendedWatcher, RecursiveMode, Watcher};
 use tauri::AppHandle;
 
@@ -17,7 +17,7 @@ pub struct MyFSWatcher {
 }
 
 impl MyFSWatcher {
-    pub fn new(handler: MyFSEventHandler, app: Arc<AppHandle>) -> (Self, Sender<String>) {
+    pub fn new(handler: MyFSEventHandler, app: Arc<AppHandle>, state_mux: &SafeMyState) -> (Self, Sender<String>) {
         let (directory_change_event_channel_sender, directory_change_event_channel_reciever) =
             std::sync::mpsc::channel::<String>();
         let watcher = recommended_watcher(move |result| match result {

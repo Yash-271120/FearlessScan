@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 
 import { Toaster } from "@/components/ui/sonner";
 import "@/App.css";
 import VolumeList from "@/components/main/Volumes/VolumeList";
-import { Volume } from "@/types";
+import { SearchResult, Volume } from "@/types";
 import { useNavigationStore } from "./store/navigation";
 import ExplorerComponent from "./components/main/Explorer/ExplorerComponent";
 import { readPath } from "./icpc-calls";
@@ -14,42 +14,33 @@ import { toast } from "sonner";
 import { Button } from "./components/ui/button";
 import { listen } from "@tauri-apps/api/event";
 import { event } from "@tauri-apps/api";
+import { useSearchStore } from "./store/search";
+import { SearchResultWorker } from "./searchWorker";
+
+
+const FS_SEARCH_DATA_EVENT = "search-event";
 
 function App() {
+  const [_, startTransition] = useTransition();
   const [volumes, setVolumes] = useState<Volume[]>([]);
-  const { currentIndex, history } = useNavigationStore()
+  const { currentIndex, history } = useNavigationStore();
+  const { addToSearchData, searchData } = useSearchStore();
   const { setDirectory } = useDirectoryStore()
 
   const fetchVolumes = async () => {
+    if (volumes.length > 0) {
+      return;
+    }
     const data = await invoke<Volume[]>("get_volumes");
     setVolumes(data)
   }
-
-  const handleReadCurrentPath = async () => {
-    try {
-      const currPath = history[currentIndex];
-      const data = await readPath(currPath);
-      setDirectory(data)
-    } catch (err) {
-      toast.error(err);
-    }
-  }
-
-  const handleTest = async () => {
-    const data = await invoke("search_directory",{
-      path: "/home/naruto/WorkSpace",
-      query: "volume"
-    });
-    console.log(data);
-  }
-
+  let render = 0;
   useEffect(() => {
-    if (currentIndex === 0) {
+    if (currentIndex === 0 && render === 0) {
+      render++;
       fetchVolumes()
       return
     }
-    
-    handleReadCurrentPath()
   }, [currentIndex])
 
   return (
@@ -57,7 +48,6 @@ function App() {
       {
         currentIndex === 0 ? <VolumeList volumes={volumes} /> : <ExplorerComponent />
       }
-      <Button onClick={handleTest}>Test</Button>
       <Toaster richColors />
     </main>
   );

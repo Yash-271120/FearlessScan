@@ -3,5 +3,5 @@
 
 #[tokio::main]
 async fn main() {
-    tauri_tut_lib::run()
+    tauri_tut_lib::run().await
 }

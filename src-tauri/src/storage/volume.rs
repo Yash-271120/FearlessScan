@@ -1,11 +1,29 @@
-use std::{fs::DirEntry, path::PathBuf};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    fs::{self, DirEntry, File},
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
-use crate::storage::bytes_to_gb;
+use crate::{
+    storage::{
+        bytes_to_gb,
+        cache::{load_storage_cache, CACHE_FILE_PATH},
+    },
+    CachedPath, FileKind, SafeMyState,
+};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use rayon::prelude::*;
 use serde::Serialize;
 use sysinfo::{Disk, Disks, System};
+use tauri::State;
+use walkdir::WalkDir;
 
-use super::is_user_facing_volume;
+use super::{
+    cache::{run_cache_poll, save_storage_cache},
+    is_user_facing_volume,
+};
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -22,31 +40,6 @@ pub struct Volume {
 pub enum DirectoryPath {
     File { name: String, path: String },
     Directory { name: String, path: String },
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SearchResult {
-    name: String,
-    path: String,
-    pub score: i64,
-    indices: Vec<usize>,
-}
-
-impl SearchResult {
-    pub fn try_from(dir_entry: &DirEntry, matcher: &SkimMatcherV2, query: &str) -> Option<Self> {
-        let file_name = dir_entry.file_name().to_string_lossy().to_string();
-        let path = dir_entry.path().to_string_lossy().to_string();
-
-        let (score, indices) = matcher.fuzzy_indices(&file_name, query)?;
-
-        Some(Self {
-            name: file_name,
-            path,
-            score,
-            indices,
-        })
-    }
 }
 
 impl Volume {
@@ -75,6 +68,44 @@ impl Volume {
             mount_point,
         }
     }
+
+    fn create_cache(&self, state_mux: &SafeMyState) {
+        let state = &mut state_mux.lock().unwrap();
+
+        let volume_cache = state
+            .storage_cache
+            .entry(self.mount_point.to_string_lossy().to_string())
+            .or_insert_with(HashMap::new);
+
+        let storage_cache = Arc::new(Mutex::new(volume_cache));
+
+        let directory_walker = WalkDir::new(self.mount_point.clone());
+
+        directory_walker
+            .into_iter()
+            .par_bridge()
+            .filter_map(Result::ok)
+            .for_each(|entry| {
+                let file_type = entry.file_type();
+                let file_type = if file_type.is_dir() {
+                    FileKind::Directory
+                } else {
+                    FileKind::File
+                };
+
+                let entity_path = entry.path().to_string_lossy().to_string();
+                let entity_name = entry.file_name().to_string_lossy().to_string();
+
+                let mut guard = storage_cache.lock().unwrap();
+                guard
+                    .entry(entity_name)
+                    .or_insert_with(Vec::default)
+                    .push(CachedPath {
+                        file_path: entity_path,
+                        file_kind: file_type,
+                    })
+            });
+    }
 }
 
 impl DirectoryPath {
@@ -96,19 +127,40 @@ impl DirectoryPath {
 }
 
 #[tauri::command]
-pub fn get_volumes() -> Result<Vec<Volume>, String> {
+pub async fn get_volumes(state_mux: State<'_, SafeMyState>) -> Result<Vec<Volume>, String> {
     let mut sys = System::new_all();
-
     sys.refresh_all();
+
+    let mut cache_file_exists = fs::metadata(CACHE_FILE_PATH.as_str()).is_ok();
+
+    if !cache_file_exists {
+        File::create(CACHE_FILE_PATH.as_str()).unwrap();
+    } else {
+        cache_file_exists = load_storage_cache(&state_mux);
+    }
 
     let sys_disks = Disks::new_with_refreshed_list();
 
-    println!("Called");
     let disks: Vec<Volume> = sys_disks
         .iter()
-        .map(Volume::from)
-        .filter(|v| is_user_facing_volume(&v.name, &v.mount_point.to_string_lossy()))
+        .filter(|disk| {
+            let name = disk.name().to_string_lossy().to_string();
+            let mount_point = disk.mount_point().to_string_lossy().to_string();
+
+            is_user_facing_volume(&name, &mount_point)
+        })
+        .map(|disk| {
+            let volume = Volume::from(disk);
+
+            if !cache_file_exists {
+                volume.create_cache(&state_mux);
+            }
+            volume
+        })
         .collect();
+
+    save_storage_cache(&state_mux);
+    run_cache_poll(&state_mux);
 
     Ok(disks)
 }
