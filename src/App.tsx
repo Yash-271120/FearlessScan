@@ -34,6 +34,17 @@ function App() {
     const data = await invoke<Volume[]>("get_volumes");
     setVolumes(data)
   }
+
+  const handleReadCurrentPath = async () => {
+    try {
+      const currPath = history[currentIndex];
+      const data = await readPath(currPath);
+      setDirectory(data)
+    } catch (err: any) {
+      toast.error(err);
+    }
+  }
+
   let render = 0;
   useEffect(() => {
     if (currentIndex === 0 && render === 0) {
@@ -41,6 +52,8 @@ function App() {
       fetchVolumes()
       return
     }
+
+    handleReadCurrentPath();
   }, [currentIndex])
 
   return (
