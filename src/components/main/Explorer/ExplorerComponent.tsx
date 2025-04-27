@@ -9,22 +9,26 @@ import { useSearchStore } from "@/store/search";
 import { SearchResult } from "@/types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass, faCircleXmark } from "@fortawesome/free-solid-svg-icons";
+import { useDirectoryStore } from "@/store/directory";
 
 const ExplorerComponent = () => {
   const { canGoForward, canGoBack, goForward, goBack, getCurrentPath } = useNavigationStore();
   const { addToSearchData, clearSearchData, isSearching } = useSearchStore();
+  const {currentMountPoint} = useDirectoryStore();
   const [searchTerm, setSearchTerm] = useState<string>("");
 
 
   const handleSearchClick = async () => {
     try {
-      const data = await invoke("search_directory", {
-        path: getCurrentPath(),
+      const data = await invoke("search_directory_fast", {
+        dirPath: getCurrentPath(),
         query: searchTerm,
+        mountPoint: currentMountPoint,
       })
-      addToSearchData(data as SearchResult[]);
+      console.log("Yash: ",data);
+      // addToSearchData(data as SearchResult[]);
     } catch (err) {
-      toast.error("Error searching");
+      toast.error(err);
     }
   };
 
