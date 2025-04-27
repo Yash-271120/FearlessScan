@@ -6,7 +6,8 @@ mod storage;
 
 use std::{collections::HashMap, sync::{mpsc::Sender, Arc, Mutex}};
 
-use filesystem::{open_file, read_directory, search_directory, search_directory_listener};
+use filesystem::{open_file, read_directory};
+use search::search_directory_fast;
 use serde::{Deserialize, Serialize};
 use storage::get_volumes;
 use tauri::Manager;
@@ -55,9 +56,8 @@ pub async fn run() {
         .invoke_handler(tauri::generate_handler![
             get_volumes,
             read_directory,
-            search_directory,
             open_file,
-            search_directory_listener
+            search_directory_fast
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
