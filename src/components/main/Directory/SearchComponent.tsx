@@ -1,6 +1,8 @@
 import { SearchResult } from "@/types"
 import { faFile } from "@fortawesome/free-solid-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
+import { invoke } from "@tauri-apps/api/core"
+import { toast } from "sonner"
 
 type Props = {
   data: SearchResult
@@ -8,7 +10,15 @@ type Props = {
 
 const SearchComponent = ({ data }: Props) => {
 
-  return <div className="rounded-sm hover:bg-gray-500 w-full p-2 flex gap-2 cursor-pointer">
+  const handleOpenFile = async () => {
+    try {
+      await invoke("open_file", { path: data.path });
+    } catch (err) {
+      toast.error(err)
+    }
+  }
+
+  return <div className="rounded-sm hover:bg-gray-500 w-full p-2 flex gap-2 cursor-pointer" onClick={handleOpenFile}>
     <div>
       <FontAwesomeIcon icon={faFile} color="#ffffff" />
     </div>

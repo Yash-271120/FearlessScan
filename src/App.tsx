@@ -39,7 +39,10 @@ function App() {
 
   let render = 0;
   useEffect(() => {
-    if (currentIndex === 0 && render === 0) {
+    if (currentIndex === 0) {
+      if(render){
+        return;
+      }
       render++;
       fetchVolumes()
       return

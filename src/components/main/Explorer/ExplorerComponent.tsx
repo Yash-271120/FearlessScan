@@ -14,7 +14,7 @@ import { useDirectoryStore } from "@/store/directory";
 const ExplorerComponent = () => {
   const { canGoForward, canGoBack, goForward, goBack, getCurrentPath } = useNavigationStore();
   const { addToSearchData, clearSearchData, isSearching } = useSearchStore();
-  const {currentMountPoint} = useDirectoryStore();
+  const { currentMountPoint } = useDirectoryStore();
   const [searchTerm, setSearchTerm] = useState<string>("");
 
 
@@ -25,8 +25,7 @@ const ExplorerComponent = () => {
         query: searchTerm,
         mountPoint: currentMountPoint,
       })
-      console.log("Yash: ",data);
-      // addToSearchData(data as SearchResult[]);
+      addToSearchData(data as SearchResult[]);
     } catch (err) {
       toast.error(err);
     }
@@ -40,8 +39,12 @@ const ExplorerComponent = () => {
   return <div>
     <div className="flex flex-row justify-between fixed top-0 left-0 right-0 w-full bg-gray-700 p-2">
       <div>
-        <Button disabled={!canGoBack()} onClick={goBack}>Back</Button>
-        <Button disabled={!canGoForward()} onClick={goForward}>Forward</Button>
+        <Button disabled={!canGoBack()} onClick={goBack}>
+          <FontAwesomeIcon icon={faMagnifyingGlass} color="#999999" />
+        </Button>
+        <Button disabled={!canGoForward()} onClick={goForward}>
+          <FontAwesomeIcon icon={faMagnifyingGlass} color="#999999" />
+        </Button>
       </div>
       <div className="flex flex-row gap-2 items-center border-1 rounded-sm px-2">
         <FontAwesomeIcon icon={faMagnifyingGlass} color="#999999" />

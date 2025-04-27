@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::{cmp::Ordering, time::Instant};
 use tauri::State;
 use walkdir::DirEntry;
@@ -64,13 +65,12 @@ impl Ord for SearchResult {
     }
 }
 
-
 pub fn check_file(
     file_name: &str,
     file_path: &str,
     matcher: &SkimMatcherV2,
     query: &str,
-)-> Option<SearchResult> {
+) -> Option<SearchResult> {
     let (score, indices) = matcher.fuzzy_indices(file_name, query)?;
     Some(SearchResult {
         name: file_name.to_string(),
@@ -97,23 +97,33 @@ pub async fn search_directory_fast(
     let storage_cache = state.storage_cache.get(&mount_point).unwrap();
 
     for (filename, paths) in storage_cache {
-        for path in paths {
-            let file_path = &path.file_path;
+        // for path in paths {
+        //     let file_path = &path.file_path;
+        //
+        //     if !file_path.starts_with(&dir_path) {
+        //         continue;
+        //     }
+        //
+        //     let search_result = check_file(&filename, &file_path, &matcher, &query);
+        //
+        //     if let Some(result) = search_result {
+        //         results.push(result);
+        //     }
+        //
+        // }
 
-            if !file_path.starts_with(&dir_path) {
-                continue;
-            }
+        let res: Vec<SearchResult> = paths
+            .iter()
+            .par_bridge()
+            .filter(|path| path.file_path.starts_with(&dir_path))
+            .map(|path| check_file(&filename, &path.file_path, &matcher, &query))
+            .filter_map(|search_result| search_result)
+            .collect();
 
-            let search_result = check_file(&filename, &file_path, &matcher, &query); 
+        results.extend(res);
+    }
 
-            if let Some(result) = search_result {
-                results.push(result);
-            }
-
-        }
-    };
-
-    results.sort_by(|a,b| b.score.cmp(&a.score));
+    results.sort_by(|a, b| b.score.cmp(&a.score));
     println!("Search took {:?}", start_time.elapsed());
     Ok(results)
 }
