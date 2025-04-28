@@ -8,24 +8,28 @@ import { invoke } from "@tauri-apps/api/core";
 import { useSearchStore } from "@/store/search";
 import { SearchResult } from "@/types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMagnifyingGlass, faCircleXmark } from "@fortawesome/free-solid-svg-icons";
+import { faMagnifyingGlass, faCircleXmark,faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { useDirectoryStore } from "@/store/directory";
 
 const ExplorerComponent = () => {
   const { canGoForward, canGoBack, goForward, goBack, getCurrentPath } = useNavigationStore();
-  const { addToSearchData, clearSearchData, isSearching } = useSearchStore();
+  const { setSearchData, clearSearchData, isSearching } = useSearchStore();
   const { currentMountPoint } = useDirectoryStore();
   const [searchTerm, setSearchTerm] = useState<string>("");
 
 
   const handleSearchClick = async () => {
     try {
+      const queryToSearch = searchTerm.trim();
+      if(queryToSearch.length === 0){
+        return;
+      }
       const data = await invoke("search_directory_fast", {
         dirPath: getCurrentPath(),
-        query: searchTerm,
+        query: queryToSearch,
         mountPoint: currentMountPoint,
       })
-      addToSearchData(data as SearchResult[]);
+      setSearchData(data as SearchResult[]);
     } catch (err) {
       toast.error(err);
     }
@@ -38,19 +42,19 @@ const ExplorerComponent = () => {
 
   return <div>
     <div className="flex flex-row justify-between fixed top-0 left-0 right-0 w-full bg-gray-700 p-2">
-      <div>
+      <div className="flex flex-row gap-2">
         <Button disabled={!canGoBack()} onClick={goBack}>
-          <FontAwesomeIcon icon={faMagnifyingGlass} color="#999999" />
+          <FontAwesomeIcon icon={faArrowLeft} color="#999999" />
         </Button>
         <Button disabled={!canGoForward()} onClick={goForward}>
-          <FontAwesomeIcon icon={faMagnifyingGlass} color="#999999" />
+          <FontAwesomeIcon icon={faArrowRight} color="#999999" />
         </Button>
       </div>
       <div className="flex flex-row gap-2 items-center border-1 rounded-sm px-2">
         <FontAwesomeIcon icon={faMagnifyingGlass} color="#999999" />
         <Input className="focus-visible:outline-none focus-visible:border-none focus-visible:ring-0 ring-0 border-none" placeholder="Search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         {
-          isSearching ? <FontAwesomeIcon icon={faCircleXmark} color="#999999" onClick={handleClearClick} /> : <Button onClick={handleSearchClick}>Search</Button>
+          isSearching ? <FontAwesomeIcon icon={faCircleXmark} color="#999999" onClick={handleClearClick} /> : <Button className="cursor-pointer" onClick={handleSearchClick}>Search</Button>
         }
       </div>
     </div>

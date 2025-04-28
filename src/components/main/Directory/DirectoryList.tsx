@@ -5,16 +5,16 @@ import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { FSEvent } from "@/types";
 import { useSearchStore } from "@/store/search";
+import SearchVirtualList from "./SearchVirtualList";
 
 const FS_EVENT_NAME = "fs-event";
 
 const DirectoryList = () => {
   const { directory, addItem, removeItem } = useDirectoryStore();
-  const {searchData} = useSearchStore();
+  const { searchData,isSearching } = useSearchStore();
 
   let render = 0;
   useEffect(() => {
-
     if (render === 0) {
       listen<FSEvent>(FS_EVENT_NAME, (event) => {
         const payload = event.payload;
@@ -28,18 +28,21 @@ const DirectoryList = () => {
           default:
             break;
         }
-      })
+      });
       render++;
     }
-  }, [])
-  return <div>{
-    searchData.length > 0 ? searchData.map((item, idx) => {
-      return <SearchComponent key={idx} data={item} />
-    }) :
-    directory.map((item, idx) => {
-      return <DirectoryComponent key={idx} content={item} />
-    })
-  }</div>
+  }, []);
+  return (
+    <div>
+      {isSearching  ? (
+        <SearchVirtualList />
+      ) : (
+        directory.map((item, idx) => {
+          return <DirectoryComponent key={idx} content={item} />;
+        })
+      )}
+    </div>
+  );
 };
 
 export default DirectoryList;
