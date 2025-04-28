@@ -17,7 +17,8 @@ const VolumeComponent = ({ volume }: Props) => {
   const handleVolumeClick = async () => {
     try {
       const data = await invoke<DirectoryPath[]>("read_directory", {
-        path: volume.mountPoint
+        path: volume.mountPoint,
+        mountPoint: volume.mountPoint,
       })
       setDirectory(data)
       pushToHistory(volume.mountPoint)

@@ -17,7 +17,7 @@ import { toast } from "sonner";
 function App() {
   const [volumes, setVolumes] = useState<Volume[]>([]);
   const { currentIndex, history } = useNavigationStore();
-  const { setDirectory } = useDirectoryStore()
+  const { setDirectory,currentMountPoint } = useDirectoryStore()
 
   const fetchVolumes = async () => {
     if (volumes.length > 0) {
@@ -30,7 +30,7 @@ function App() {
   const handleReadCurrentPath = async () => {
     try {
       const currPath = history[currentIndex];
-      const data = await readPath(currPath);
+      const data = await readPath(currPath,currentMountPoint);
       setDirectory(data)
     } catch (err: any) {
       toast.error(err);

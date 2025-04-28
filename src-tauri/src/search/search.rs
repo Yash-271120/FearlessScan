@@ -87,6 +87,7 @@ pub async fn search_directory_fast(
     query: String,
     dir_path: String,
 ) -> Result<Vec<SearchResult>, MyError> {
+    println!("Search Request: {}, {}",dir_path, mount_point);
     let start_time = Instant::now();
     let matcher = SkimMatcherV2::default().smart_case();
     let query = query.trim().to_lowercase();

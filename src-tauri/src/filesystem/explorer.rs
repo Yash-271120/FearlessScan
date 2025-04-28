@@ -1,4 +1,5 @@
 use notify::RecursiveMode;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::{fs, thread};
 use tauri::{AppHandle, State};
@@ -24,6 +25,7 @@ pub fn read_directory(
     state_mux: State<'_, SafeMyState>,
     app: AppHandle,
     path: String,
+    mount_point: String,
 ) -> Result<Vec<DirectoryPath>, MyError> {
     let read_dir_result = fs::read_dir(&path)?;
 
@@ -37,12 +39,17 @@ pub fn read_directory(
     let safe_app = Arc::new(app);
 
     let mut gaurded_state = state_mux.lock().unwrap();
+    let mut mount_point_pathbuf = PathBuf::new();
+    mount_point_pathbuf.push(mount_point);
 
     if let Some(directory_event_sender) = &gaurded_state.directory_change_event_channel_sender {
         directory_event_sender.send(path).unwrap();
     } else {
-        let (mut watcher, directory_event_sender) =
-            MyFSWatcher::new(MyFSEventHandler::new(), safe_app, &state_mux);
+        let (mut watcher, directory_event_sender) = MyFSWatcher::new(
+            MyFSEventHandler::new(Arc::clone(&state_mux),mount_point_pathbuf),
+            safe_app,
+            &state_mux,
+        );
 
         thread::spawn(move || {
             watcher.watch(RecursiveMode::NonRecursive).unwrap();
