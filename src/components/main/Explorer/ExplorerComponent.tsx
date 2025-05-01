@@ -40,13 +40,25 @@ const ExplorerComponent = () => {
     clearSearchData();
   };
 
+  const handleGoBack = () => {
+    goBack();
+    setSearchTerm("");
+    clearSearchData();
+  }
+
+  const handleGoForward = () => {
+    goForward();
+    setSearchTerm("");
+    clearSearchData();
+  }
+
   return <div>
     <div className="flex flex-row justify-between fixed top-0 left-0 right-0 w-full bg-gray-700 p-2">
       <div className="flex flex-row gap-2">
-        <Button disabled={!canGoBack()} onClick={goBack}>
+        <Button disabled={!canGoBack()} onClick={handleGoBack}>
           <FontAwesomeIcon icon={faArrowLeft} color="#999999" />
         </Button>
-        <Button disabled={!canGoForward()} onClick={goForward}>
+        <Button disabled={!canGoForward()} onClick={handleGoForward}>
           <FontAwesomeIcon icon={faArrowRight} color="#999999" />
         </Button>
       </div>

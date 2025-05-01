@@ -82,6 +82,85 @@ impl MyFSEventHandler {
         .unwrap();
     }
 
+    pub fn handle_delete(&self, path:&Path, app: Arc<AppHandle>){
+        let mut state = self.state_mux.lock().unwrap();
+        let current_volume = self.get_cache_map(&mut state);
+
+        let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+        let file_kind = if path.is_dir(){
+            FileKind::Directory
+        }else {
+            FileKind::File
+        };
+        let file_path = path.to_string_lossy().to_string();
+
+        let directory_path = match file_kind {
+            FileKind::Directory => DirectoryPath::Directory {
+                name: file_name.clone(),
+                path: file_path.clone(),
+            },
+            FileKind::File => DirectoryPath::File {
+                name: file_name.clone(),
+                path: file_path.clone(),
+            },
+        };
+        current_volume.remove(&file_name);
+
+        app.emit(
+            FS_EVENT_NAME,
+            MyFSEvent {
+                directory_path,
+                kind: MyFSEventKind::Remove,
+            },
+        )
+        .unwrap();
+
+
+    }
+
+    pub fn handle_rername_to(&self, path:&Path, app: Arc<AppHandle>){
+        let mut state = self.state_mux.lock().unwrap();
+        let current_volume = self.get_cache_map(&mut state);
+
+        let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+        let file_kind = if path.is_dir(){
+            FileKind::Directory
+        }else {
+            FileKind::File
+        };
+        let file_path = path.to_string_lossy().to_string();
+
+        let directory_path = match file_kind {
+            FileKind::Directory => DirectoryPath::Directory {
+                name: file_name.clone(),
+                path: file_path.clone(),
+            },
+            FileKind::File => DirectoryPath::File {
+                name: file_name.clone(),
+                path: file_path.clone(),
+            },
+        };
+
+        current_volume.entry(file_name).or_insert_with(|| vec![CachedPath{
+            file_kind,
+            file_path
+        }]);
+
+        app.emit(
+            FS_EVENT_NAME,
+            MyFSEvent {
+                directory_path,
+                kind: MyFSEventKind::Create,
+            },
+        )
+        .unwrap();
+
+    }
+
+    pub fn handle_rename_from(&self, path:&Path, app: Arc<AppHandle>){
+        self.handle_delete(path, app);
+    }
+
     pub fn handle_event(&self, event: notify::Event, app: Arc<AppHandle>) {
         match event.kind {
             notify::EventKind::Create(_create_kind) => {
@@ -90,40 +169,13 @@ impl MyFSEventHandler {
             }
             notify::EventKind::Modify(modify_kind) => {
                 let path = event.paths[0].clone();
-                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-                let is_directory = path.is_dir();
-
-                let directory_path = match is_directory {
-                    true => DirectoryPath::Directory {
-                        name: file_name,
-                        path: path.to_string_lossy().to_string(),
-                    },
-                    false => DirectoryPath::File {
-                        name: file_name,
-                        path: path.to_string_lossy().to_string(),
-                    },
-                };
                 if let ModifyKind::Name(rename_mode) = modify_kind {
                     match rename_mode {
                         RenameMode::From => {
-                            app.emit(
-                                FS_EVENT_NAME,
-                                MyFSEvent {
-                                    directory_path,
-                                    kind: MyFSEventKind::Remove,
-                                },
-                            )
-                            .unwrap();
+                            self.handle_rename_from(&path, app);
                         }
                         RenameMode::To => {
-                            app.emit(
-                                FS_EVENT_NAME,
-                                MyFSEvent {
-                                    directory_path,
-                                    kind: MyFSEventKind::Create,
-                                },
-                            )
-                            .unwrap();
+                            self.handle_rername_to(&path, app);
                         }
                         _ => {}
                     }
@@ -131,31 +183,9 @@ impl MyFSEventHandler {
             }
             notify::EventKind::Remove(_remove_kind) => {
                 let path = event.paths[0].clone();
-                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-                let is_directory = path.is_dir();
-
-                let directory_path = match is_directory {
-                    true => DirectoryPath::Directory {
-                        name: file_name,
-                        path: path.to_string_lossy().to_string(),
-                    },
-                    false => DirectoryPath::File {
-                        name: file_name,
-                        path: path.to_string_lossy().to_string(),
-                    },
-                };
-                app.emit(
-                    FS_EVENT_NAME,
-                    MyFSEvent {
-                        directory_path,
-                        kind: MyFSEventKind::Remove,
-                    },
-                )
-                .unwrap();
+                self.handle_delete(&path, app);
             }
-            notify::EventKind::Any => {}
-            notify::EventKind::Access(_access_kind) => {}
-            notify::EventKind::Other => {}
+            _ => {}
         };
     }
 }
