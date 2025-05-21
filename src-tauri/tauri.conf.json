@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-tut",
-  "version": "0.1.0",
+  "productName": "fearless-scan",
+  "version": "1.1.0",
   "identifier": "com.tauri-tut.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-tut",
+        "title": "fearless-scan",
         "width": 800,
         "height": 600
       }

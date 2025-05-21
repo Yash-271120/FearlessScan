@@ -977,6 +977,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "fearless-scan"
+version = "1.1.0"
+dependencies = [
+ "crossbeam",
+ "dirs",
+ "fuzzy-matcher",
+ "notify",
+ "once_cell",
+ "open",
+ "rayon",
+ "serde",
+ "serde_bencode",
+ "serde_json",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "thiserror 2.0.12",
+ "tokio",
+ "walkdir",
+ "zstd",
+]
+
+[[package]]
 name = "field-offset"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3964,31 +3989,6 @@ dependencies = [
  "webview2-com",
  "windows 0.60.0",
  "wry",
-]
-
-[[package]]
-name = "tauri-tut"
-version = "0.1.0"
-dependencies = [
- "crossbeam",
- "dirs",
- "fuzzy-matcher",
- "notify",
- "once_cell",
- "open",
- "rayon",
- "serde",
- "serde_bencode",
- "serde_json",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "thiserror 2.0.12",
- "tokio",
- "walkdir",
- "zstd",
 ]
 
 [[package]]
