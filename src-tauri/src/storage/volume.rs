@@ -17,7 +17,7 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use rayon::prelude::*;
 use serde::Serialize;
 use sysinfo::{Disk, Disks, System};
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 use walkdir::WalkDir;
 
 use super::{
@@ -40,6 +40,40 @@ pub struct Volume {
 pub enum DirectoryPath {
     File { name: String, path: String },
     Directory { name: String, path: String },
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexingStartedEventPayload {
+    total_items: usize,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexingProgressEventPayload {
+    current_item: usize,
+    total_items: usize,
+    percentage: f32,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexingFinishedEventPayload {
+    total_processed: usize,
+    elapsed_time_ms: u64,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AccumulatingStartedEventPayload {
+    mount_point: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AccumulatingFinishedEventPayload {
+    mount_point: String,
+    items_found: usize,
 }
 
 impl Volume {
@@ -69,7 +103,8 @@ impl Volume {
         }
     }
 
-    fn create_cache(&self, state_mux: &SafeMyState) {
+    fn create_cache(&self, state_mux: &SafeMyState, app_handle: &AppHandle, total_items: usize) {
+        let start_time = std::time::Instant::now();
         let state = &mut state_mux.lock().unwrap();
 
         let volume_cache = state
@@ -78,9 +113,12 @@ impl Volume {
             .or_insert_with(HashMap::new);
 
         let storage_cache = Arc::new(Mutex::new(volume_cache));
-
+        
         let directory_walker = WalkDir::new(self.mount_point.clone());
-
+        
+        // Counter for processed items
+        let counter = Arc::new(Mutex::new(0usize));
+        
         directory_walker
             .into_iter()
             .par_bridge()
@@ -103,8 +141,29 @@ impl Volume {
                     .push(CachedPath {
                         file_path: entity_path,
                         file_kind: file_type,
-                    })
+                    });
+                
+                // Update counter and emit progress event
+                let mut count = counter.lock().unwrap();
+                *count += 1;
+                
+                if *count % 100 == 0 || *count == 1 { // Emit every 100 items to avoid flooding
+                    let percentage = (*count as f32 / total_items as f32) * 100.0;
+                    let _ = app_handle.emit("indexing-progress", IndexingProgressEventPayload {
+                        current_item: *count,
+                        total_items,
+                        percentage,
+                    });
+                }
             });
+            
+        // Emit indexing finished event
+        let elapsed = start_time.elapsed();
+        let total_processed = *counter.lock().unwrap();
+        let _ = app_handle.emit("indexing-finished", IndexingFinishedEventPayload {
+            total_processed,
+            elapsed_time_ms: elapsed.as_millis() as u64,
+        });
     }
 }
 
@@ -127,7 +186,7 @@ impl DirectoryPath {
 }
 
 #[tauri::command]
-pub async fn get_volumes(state_mux: State<'_, SafeMyState>) -> Result<Vec<Volume>, String> {
+pub async fn get_volumes(app_handle: AppHandle, state_mux: State<'_, SafeMyState>) -> Result<Vec<Volume>, String> {
     let mut sys = System::new_all();
     sys.refresh_all();
 
@@ -139,7 +198,68 @@ pub async fn get_volumes(state_mux: State<'_, SafeMyState>) -> Result<Vec<Volume
         cache_file_exists = load_storage_cache(&state_mux);
     }
 
+    println!("Cache file exists: {}", cache_file_exists);
+
     let sys_disks = Disks::new_with_refreshed_list();
+
+    // Calculate total items to index across all mount points
+    let total_items_to_index = if !cache_file_exists {
+        // Emit accumulating started event
+        app_handle.emit("accumulating-started", AccumulatingStartedEventPayload {
+            mount_point: "all".to_string(),
+        }).unwrap();
+        
+        let start_time = std::time::Instant::now();
+        
+        let total = sys_disks
+            .iter()
+            .filter(|disk| {
+                let name = disk.name().to_string_lossy().to_string();
+                let mount_point = disk.mount_point().to_string_lossy().to_string();
+                is_user_facing_volume(&name, &mount_point)
+            })
+            .map(|disk| {
+                let mount_point = disk.mount_point().to_string_lossy().to_string();
+                app_handle.emit("accumulating-started", AccumulatingStartedEventPayload {
+                    mount_point: mount_point.clone(),
+                }).unwrap();
+                
+                let count = WalkDir::new(disk.mount_point())
+                    .into_iter()
+                    .filter_map(Result::ok)
+                    .count();
+                    
+                println!("Mount point {} has {} items", mount_point, count);
+                
+                app_handle.emit("accumulating-finished", AccumulatingFinishedEventPayload {
+                    mount_point,
+                    items_found: count,
+                }).unwrap();
+                
+                count
+            })
+            .sum::<usize>();
+        
+        let elapsed = start_time.elapsed();
+        
+        // Emit accumulating finished event for all mount points
+        app_handle.emit("accumulating-finished", AccumulatingFinishedEventPayload {
+            mount_point: "all".to_string(),
+            items_found: total,
+        }).unwrap();
+        
+        total
+    } else {
+        0 // No indexing needed if cache exists
+    };
+
+    if !cache_file_exists && total_items_to_index > 0 {
+        println!("Total items to index: {}", total_items_to_index);
+        // Optional: Emit an event to the frontend with the total count
+        app_handle.emit("indexing-started", IndexingStartedEventPayload { 
+            total_items: total_items_to_index 
+        }).unwrap();
+    }
 
     let disks: Vec<Volume> = sys_disks
         .iter()
@@ -153,7 +273,7 @@ pub async fn get_volumes(state_mux: State<'_, SafeMyState>) -> Result<Vec<Volume
             let volume = Volume::from(disk);
 
             if !cache_file_exists {
-                volume.create_cache(&state_mux);
+                volume.create_cache(&state_mux, &app_handle, total_items_to_index);
             }
             volume
         })
